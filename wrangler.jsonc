@@ -1,0 +1,6 @@
+{
+  "name": "stopwatch",
+  "compatibility_date": "2026-07-01",
+  "assets": { "directory": "./public" },
+  "routes": [{ "pattern": "stopwatch.jozo.beer", "custom_domain": true }]
+}
