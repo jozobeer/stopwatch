@@ -1,5 +1,277 @@
 <!doctype html>
 <html lang="ja">
-<head><meta charset="utf-8"><title>ストップウォッチ</title></head>
-<body><h1>ストップウォッチ</h1><p>builder がこのファイルを実装で置き換えます。</p></body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ストップウォッチ</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='18' r='11' fill='%231a1f2e' stroke='%23e8ecf4' stroke-width='2'/%3E%3Ccircle cx='16' cy='18' r='8.5' fill='none' stroke='%233d4659' stroke-width='1'/%3E%3Cpath d='M12 5h8v3h-8z' fill='%23e8ecf4'/%3E%3Ccircle cx='16' cy='4' r='1.5' fill='%23e8ecf4'/%3E%3Cline x1='16' y1='18' x2='16' y2='11' stroke='%235b9fd4' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='16' y1='18' x2='21' y2='18' stroke='%23e8ecf4' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='18' r='1.5' fill='%235b9fd4'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #0e1117;
+      --bg-accent: #161b24;
+      --text: #e8ecf4;
+      --muted: #8b93a7;
+      --start: #3d9a6a;
+      --start-hover: #48b37a;
+      --stop: #c45c5c;
+      --stop-hover: #d66a6a;
+      --lap: #3a7ca5;
+      --lap-hover: #4a8fb8;
+      --reset: #4a5160;
+      --reset-hover: #5c6475;
+      --disabled: #2a303c;
+      --border: #2a3140;
+      --display: #f0f4fc;
+      --font-display: "JetBrains Mono", "SF Mono", "Cascadia Code", "Consolas", monospace;
+      --font-ui: "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-ui);
+      color: var(--text);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, #1a2740 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, #152030 0%, transparent 50%),
+        var(--bg);
+      padding: 2rem 1rem;
+    }
+
+    main {
+      width: 100%;
+      max-width: 28rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    h1 {
+      font-size: 0.95rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    #display {
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 12vw, 4.5rem);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+      color: var(--display);
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(91, 159, 212, 0.15);
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      font-family: var(--font-ui);
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.75rem 1.4rem;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      color: #fff;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+      min-width: 5.5rem;
+    }
+
+    button:active:not(:disabled) { transform: scale(0.97); }
+    button:disabled {
+      background: var(--disabled);
+      color: var(--muted);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    #toggle.running { background: var(--stop); }
+    #toggle.running:hover:not(:disabled) { background: var(--stop-hover); }
+    #toggle:not(.running) { background: var(--start); }
+    #toggle:not(.running):hover:not(:disabled) { background: var(--start-hover); }
+
+    #lap { background: var(--lap); }
+    #lap:hover:not(:disabled) { background: var(--lap-hover); }
+
+    #reset { background: var(--reset); }
+    #reset:hover:not(:disabled) { background: var(--reset-hover); }
+
+    #laps {
+      list-style: none;
+      width: 100%;
+      max-height: 14rem;
+      overflow-y: auto;
+      border-top: 1px solid var(--border);
+    }
+
+    #laps:empty { border-top: none; }
+
+    #laps li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.7rem 0.25rem;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-display);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.95rem;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    #laps .lap-num { color: var(--muted); }
+    #laps .lap-time { color: var(--text); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    footer {
+      margin-top: 3rem;
+      text-align: center;
+      font-size: 0.8rem;
+      opacity: 0.6;
+    }
+
+    footer a { color: inherit; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ストップウォッチ</h1>
+    <div id="display" data-testid="display" aria-live="polite">00:00.00</div>
+    <div class="controls">
+      <button type="button" id="toggle" aria-label="開始">開始</button>
+      <button type="button" id="lap" disabled>ラップ</button>
+      <button type="button" id="reset">リセット</button>
+    </div>
+    <ol id="laps" data-testid="laps" reversed></ol>
+  </main>
+  <footer style="margin-top:3rem;text-align:center;font-size:.8rem;opacity:.6">
+    <a href="https://apps.jozo.beer" style="color:inherit">apps.jozo.beer</a>
+  </footer>
+
+  <script>
+    (function () {
+      const TICK_MS = 16;
+
+      let running = false;
+      let elapsedBefore = 0;
+      let startTime = 0;
+      let laps = [];
+      let timerId = null;
+
+      const displayEl = document.getElementById("display");
+      const toggleBtn = document.getElementById("toggle");
+      const lapBtn = document.getElementById("lap");
+      const resetBtn = document.getElementById("reset");
+      const lapsEl = document.getElementById("laps");
+
+      function getElapsed() {
+        if (!running) return elapsedBefore;
+        return elapsedBefore + (performance.now() - startTime);
+      }
+
+      function formatTime(ms) {
+        const totalCs = Math.floor(Math.max(0, ms) / 10);
+        const centiseconds = totalCs % 100;
+        const totalSeconds = Math.floor(totalCs / 100);
+        const seconds = totalSeconds % 60;
+        const minutes = Math.floor(totalSeconds / 60);
+        return (
+          String(minutes).padStart(2, "0") +
+          ":" +
+          String(seconds).padStart(2, "0") +
+          "." +
+          String(centiseconds).padStart(2, "0")
+        );
+      }
+
+      function renderLaps() {
+        lapsEl.replaceChildren();
+        for (let i = laps.length - 1; i >= 0; i--) {
+          const li = document.createElement("li");
+          const num = document.createElement("span");
+          num.className = "lap-num";
+          num.setAttribute("data-testid", "lap-num");
+          num.textContent = String(i + 1);
+          const time = document.createElement("span");
+          time.className = "lap-time";
+          time.setAttribute("data-testid", "lap-time");
+          time.textContent = formatTime(laps[i]);
+          li.append(num, time);
+          lapsEl.appendChild(li);
+        }
+      }
+
+      function render() {
+        displayEl.textContent = formatTime(getElapsed());
+        toggleBtn.textContent = running ? "停止" : "開始";
+        toggleBtn.setAttribute("aria-label", running ? "停止" : "開始");
+        toggleBtn.classList.toggle("running", running);
+        lapBtn.disabled = !running;
+        renderLaps();
+      }
+
+      function tick() {
+        displayEl.textContent = formatTime(getElapsed());
+      }
+
+      function start() {
+        if (running) return;
+        startTime = performance.now();
+        running = true;
+        timerId = setInterval(tick, TICK_MS);
+        render();
+      }
+
+      function stop() {
+        if (!running) return;
+        elapsedBefore = getElapsed();
+        running = false;
+        clearInterval(timerId);
+        timerId = null;
+        render();
+      }
+
+      function reset() {
+        running = false;
+        elapsedBefore = 0;
+        startTime = 0;
+        laps = [];
+        clearInterval(timerId);
+        timerId = null;
+        render();
+      }
+
+      function lap() {
+        if (!running) return;
+        laps.push(getElapsed());
+        render();
+      }
+
+      toggleBtn.addEventListener("click", function () {
+        if (running) stop();
+        else start();
+      });
+      lapBtn.addEventListener("click", lap);
+      resetBtn.addEventListener("click", reset);
+
+      render();
+    })();
+  </script>
+</body>
 </html>
