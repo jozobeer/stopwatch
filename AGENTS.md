@@ -1,24 +1,22 @@
 # ストップウォッチ
 
-このリポジトリは kojo が生成した単一ページWebアプリです。
+経過時間を 1/100 秒（`MM:SS.cc`）で計測する静的単一ページ Web アプリ。`public/index.html` に HTML / CSS / JS がすべてインラインで入っており、ビルドなしで動く。
 
-## アイデア
+## アプリ概要と構成
 
-# ストップウォッチ
+- **操作**: 開始/停止はトグルボタン1つ（計測中は「停止」、停止中は「開始」）。ラップは計測中のみ有効。リセットは計測中・停止中どちらでも可
+- **表示**: 経過時間は `MM:SS.cc`（分は 60 以上でも桁を増やし、時への繰り上げなし）。ラップ一覧は番号 + 経過時間で、新しいものが上
+- **計測**: `performance.now()` 基準の差分計算（`elapsedBefore` + 走行中の差分）。表示更新は約 16ms 間隔の `setInterval`。永続化なし
+- **UI**: ダーク基調・中央寄せの縦一列。フッターに `apps.jozo.beer` への導線
 
-開始・停止・リセットのボタンで経過時間を計測し、ラップタイムを記録できる静的単一ページアプリ。
+主要ファイル:
 
-## 意図
+- `public/index.html` — アプリ本体
+- `tests/app.spec.ts` — 振る舞いの正（受け入れ条件のテスト）
+- `PLAN.md` — 初回実装時の計画（歴史的文書。現状の仕様の正ではない）
+- `wrangler.jsonc` — Cloudflare Workers assets 配信設定
 
-プレゼン練習や筋トレなどのトレーニング中に、開きっぱなしにして使う計測道具。
-ラップはセクション・セットごとの所要時間を後で振り返るための記録。
-
-## 受け入れ条件の種
-
-- 「開始」ボタンを押すと経過時間が1/100秒単位でカウントアップし始める
-- 「ラップ」ボタンを押すとその時点の経過時間が記録として一覧に追加される
-- 「リセット」ボタンを押すと経過時間表示が00:00.00に戻りラップ記録もクリアされる
-
+現状の正は **README.md** と **`tests/app.spec.ts`** である。`PLAN.md` は初回実装の記録として残すだけで、仕様変更時に更新する必要はない。
 
 ## 技術スタック（不変）
 
@@ -27,13 +25,12 @@
 - テスト: Playwright（`tests/app.spec.ts`、`npm test`）
 - 保守時もこのスタックを維持すること。フレームワーク・ビルドツール・宣言外ライブラリの導入は禁止
 
-## 制約
+## 品質不変条件
 
-- 静的アプリ（`public/` 配下のみ）。サーバコード・外部API・ビルドツールは使わない
-- `public/index.html` を単一ファイルで完結させる（CSS/JSインライン可）
-- PLAN.md の受け入れ条件それぞれに対応するテストを `tests/app.spec.ts` に追記し、`npm test` が通ること（雛形のスモークテストは削除しない）
-- favicon を `<link rel="icon" href="data:image/svg+xml,...">` のインライン data URI で含める（外部ファイル・外部URL不可。アプリのテーマに合った絵柄にする）
-- hub（apps.jozo.beer）へのフッター導線を入れる。マークアップは次のとおり固定する:
+変更後も次を壊さないこと。変更後は `npm run verify` が通る状態を維持する。
+
+- **favicon**: `<link rel="icon" href="data:image/svg+xml,...">` のインライン data URI（外部ファイル・外部 URL 不可）
+- **フッター**: hub（apps.jozo.beer）への導線。リンク先 `https://apps.jozo.beer` とリンクテキスト `apps.jozo.beer` は変えない
 
   ```html
   <footer style="margin-top:3rem;text-align:center;font-size:.8rem;opacity:.6">
@@ -41,9 +38,20 @@
   </footer>
   ```
 
-  スタイル（リンク色を含む）はアプリのテーマに合わせて調整してよいが、リンク先 `https://apps.jozo.beer` とリンクテキスト `apps.jozo.beer` は変えない。リンク色を変える場合は背景とのコントラストを確保すること
+  スタイルはテーマに合わせて調整してよい。body が flex/grid のセンタリングの場合は `flex-direction: column` にするか、メインコンテナ末尾に置き、レイアウトを崩さないこと。
 
-  配置は縦方向の通常フローの最下部に統合する。body がセンタリングレイアウト（display:flex / display:grid で中央寄せ）の場合、`</body>` 直前に置くと footer がその flex/grid アイテムになりレイアウトが崩れる（row 方向 flex では横並びになる）ため、body を flex-direction: column にするか、センタリング済みメインコンテナ内の末尾に置くこと。それ以外の場合は `</body>` 直前でよい
-- README.md はテンプレートが生成済み。削除しないこと
-- apple-touch-icon / manifest / og-image / robots / sitemap は factory が公開時に自動生成するため、builder は書かない
-- 完成条件: PLAN.md の受け入れ条件をすべて満たし、`npm run verify` と `npm test` が通ること
+その他:
+
+- 静的アプリ（`public/` 配下のみ）。サーバコード・外部 API・ビルドツールは使わない
+- `public/index.html` を単一ファイルで完結させる
+- 雛形のスモークテスト（ページロード）は削除しない
+- README.md は削除しない
+- apple-touch-icon / manifest / og-image / robots / sitemap は公開基盤が扱うため、このリポジトリでは書かない
+
+## 保守の進め方
+
+1. 変更したい振る舞いを受け入れ条件として `tests/app.spec.ts` に先に書く（または既存テストを更新する）
+2. `public/index.html` を実装・修正する
+3. `npm test` と `npm run verify` を通し、品質不変条件を満たすことを確認する
+4. `git commit` し `git push` する
+5. `npm run deploy` で Cloudflare Workers にデプロイする
