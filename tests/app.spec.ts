@@ -146,3 +146,44 @@ test("リセットで表示・ラップがクリアされ停止状態になる",
   await expect(page.getByRole("button", { name: "開始" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "ラップ" })).toBeDisabled();
 });
+
+test("SEO: meta description が空でない", async ({ page }) => {
+  await page.goto(APP_URL);
+  const content = await page.locator('meta[name="description"]').getAttribute("content");
+  expect(content).toBeTruthy();
+  expect(content!.trim().length).toBeGreaterThan(0);
+});
+
+test("SEO: JSON-LD WebApplication に必須フィールドがある", async ({ page }) => {
+  await page.goto(APP_URL);
+
+  const nodes = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => {
+    const collected: Record<string, unknown>[] = [];
+    for (const script of scripts) {
+      const parsed = JSON.parse(script.textContent || "null");
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      for (const item of list) {
+        if (item && typeof item === "object") collected.push(item as Record<string, unknown>);
+      }
+    }
+    return collected;
+  });
+
+  const webApp = nodes.find((n) => {
+    const t = n["@type"];
+    return t === "WebApplication" || (Array.isArray(t) && t.includes("WebApplication"));
+  });
+  expect(webApp).toBeTruthy();
+  expect(webApp!.name).toBeTruthy();
+  expect(webApp!.description).toBeTruthy();
+  expect(webApp!.url).toBeTruthy();
+  expect(webApp!.applicationCategory).toBeTruthy();
+  const offers = webApp!.offers as { price?: string } | undefined;
+  expect(offers?.price).toBe("0");
+});
+
+test("SEO: 使い方と FAQ セクションが DOM 上にある", async ({ page }) => {
+  await page.goto(APP_URL);
+  await expect(page.locator("#how-to")).toBeVisible();
+  await expect(page.locator("#faq")).toBeVisible();
+});
